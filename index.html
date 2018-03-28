@@ -1,5 +1,7 @@
+<!--Author:Zach Hopman
+    Project: SPAM
+    Date: 3-27-2018-->
 <html>
-
 <head>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 </head>
@@ -8,30 +10,25 @@
     <div class="p-3 mb-2 bg-dark text-white">
         <div class="container">
             <div class="p-3 mb-2 bg-light text-dark">
-                <center><h2>Simulated Page Allocation Manager</h2></center>
+                <center>
+                    <h2>Simulated Page Allocation Manager</h2>
+                </center>
                 <div class="row">
                     <div class="col-sm-4">
                         <div class="form-group">
                             <label>Instructions:</label>
                             <hr>
-                            <textarea class="form-control" rows="15" id="instructions" readonly="readonly"></textarea>
+                            <center>
+                                <p>Enter the File name</p>
+                                <input id="input" type="input" onchange="readTextFile();"><br><br>
+                                <button type="button" class="btn btn-primary">Submit</button></center><br>
+                            <textarea class="form-control" rows="10" id="instructions" readonly="readonly"></textarea>
                         </div>
-    
-
-
                     </div>
-					<div class="col-sm-4">
-					
-						 <label>Input File:</label><hr>
-						 <center>
-						 <p>Enter the File name you wish to simulate</p>
-                        <input id="input" type="input" onchange="readTextFile();"><br><br>
-						<button type="button" class="btn btn-primary">Submit</button></center>
-					</div>
-                    <div class="col-sm-4">
+                    <div class="col-sm-3">
                         <label>Memory:</label>
                         <hr>
-                        <div class="card" style="width: 18rem;">
+                        <div class="card" style="width: 10rem;">
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item" id="0">Free</li>
                                 <li class="list-group-item" id="1">Free</li>
@@ -41,16 +38,22 @@
                                 <li class="list-group-item" id="5">Free</li>
                                 <li class="list-group-item" id="6">Free</li>
                                 <li class="list-group-item" id="7">Free</li>
-
                             </ul>
                         </div>
                     </div>
+                    <div class="col-sm-4">
+                        <div class="form-group">
+                            <label>Page Table:</label>
+                            <hr>
+                            <textarea class="form-control" rows="16" id="pagetable" readonly="readonly"></textarea>
+                        </div>
+                    </div>
                 </div>
-				
                 <div class="row">
                     <div class="col-lg">
                         <div class="form-group">
                             <label>Output:</label>
+                            <hr>
                             <textarea class="form-control" rows="12" id="output" readonly="readonly"></textarea>
                         </div>
                     </div>
@@ -62,16 +65,15 @@
         </div>
     </div>
 </body>
-
 <script>
-    var allText = "";
-    var stepCounter = 0;
-    var numFrames = 8;
-    var InstructionsArray;
-    var framesArray;
-    var codePageTable = [];
-    var dataPageTable = [];
+    var stepCounter = 0;//used to count which instruction to execute
+    var numFrames = 8;//number of available frames
+    var InstructionsArray; //2d array holding the input instructions
+    var framesArray;//array representing the frame table
+    var codePageTable = [];//2d array holding all code page tables
+    var dataPageTable = [];//2d array holding all data page tables
 
+    //loads the entered file and resets the program
     function readTextFile() {
         file = document.getElementById("input").value;
         var rawFile = new XMLHttpRequest();
@@ -79,7 +81,7 @@
         rawFile.onreadystatechange = function() {
             if (rawFile.readyState === 4) {
                 if (rawFile.status === 200 || rawFile.status == 0) {
-                    allText = rawFile.responseText;
+                     var allText = rawFile.responseText;
                     //write input to instructions field
                     document.getElementById("instructions").innerHTML = allText;
                     var TempArray = allText.split("\n");
@@ -89,21 +91,24 @@
                     for (var i = 0; i < TempArray.length; i++) {
                         InstructionsArray[i] = TempArray[i].split(" ");
                     }
-
                     framesArray = new Array(numFrames);
                     for (var i = 0; i < numFrames; i++) {
                         framesArray[i] = "Free"
                     }
+                    //reset stepcounter
+                    stepCounter = 0;
                 }
             }
         }
         rawFile.send(null);
     }
 
+    //This function runs everytime the next instruction button is pressed
     function StepInstruction() {
         //check if instructions are done
         if (InstructionsArray[stepCounter] == undefined) {
             document.getElementById("output").innerHTML += "Instructions Completed" + '\n';
+            document.getElementById("pagetable").innerHTML = "Instructions Completed"
         } else {
             //Check for -1 (end of program)
             if (InstructionsArray[stepCounter][1] == -1) {
@@ -119,8 +124,14 @@
                     position = codePageTable[InstructionsArray[stepCounter][0]][i];
                     framesArray[position] = "Free";
                 }
+                //update page tables
+                delete codePageTable[InstructionsArray[stepCounter][0]];
+                delete dataPageTable[InstructionsArray[stepCounter][0]];
 
+                document.getElementById("pagetable").innerHTML = "Deleted Page tables for program " + InstructionsArray[stepCounter][0];
 
+                //increment Instruction Counter    
+                stepCounter = stepCounter + 1;
             }
             //allocate memory frames
             else {
@@ -131,26 +142,48 @@
                 var codepages = Math.ceil(Number(InstructionsArray[stepCounter][1]) / 512);
                 var datapages = Math.ceil(Number(InstructionsArray[stepCounter][2]) / 512);
 
-                document.getElementById("output").innerHTML += "Loading program: " + InstructionsArray[stepCounter][0] + " into RAM: Code=" + InstructionsArray[stepCounter][1] + " ( " + codepages + " pages), Data=" + InstructionsArray[stepCounter][2] + " (" + datapages + " pages)" + '\n';
-
-                //set frames for code
-                for (var i = 1; i <= codepages; i++) {
-                    position = framesArray.indexOf("Free");
-                    framesArray[position] = "Code " + i + " of P" + InstructionsArray[stepCounter][0];
-
-                    codePageTable[InstructionsArray[stepCounter][0]].push(position);
+                var countfree = 0;
+                for (var i = 0; i < numFrames; i++) {
+                    if (framesArray[i] == "Free") {
+                        countfree = countfree + 1;
+                    }
                 }
-                //set frames for data
-                for (var i = 1; i <= datapages; i++) {
-                    position = framesArray.indexOf("Free");
-                    framesArray[position] = "Data " + i + " of P" + InstructionsArray[stepCounter][0];
+                //check if enough frames exist
+                if (countfree < (codepages + datapages)) {
+                    document.getElementById("output").innerHTML += "Program cannot fit\n";
+                    document.getElementById("pagetable").innerHTML = "Program cannot fit"
+                } else {
 
-                    dataPageTable[InstructionsArray[stepCounter][0]].push(position);
+                    document.getElementById("output").innerHTML += "Loading program: " + InstructionsArray[stepCounter][0] + " into RAM: Code=" + InstructionsArray[stepCounter][1] + " ( " + codepages + " pages), Data=" + InstructionsArray[stepCounter][2] + " (" + datapages + " pages)" + '\n';
+
+                    //set frames for code
+                    for (var i = 1; i <= codepages; i++) {
+                        position = framesArray.indexOf("Free");
+                        framesArray[position] = "Code " + i + " of P" + InstructionsArray[stepCounter][0];
+
+                        codePageTable[InstructionsArray[stepCounter][0]].push(position);
+                    }
+                    //set frames for data
+                    for (var i = 1; i <= datapages; i++) {
+                        position = framesArray.indexOf("Free");
+                        framesArray[position] = "Data " + i + " of P" + InstructionsArray[stepCounter][0];
+
+                        dataPageTable[InstructionsArray[stepCounter][0]].push(position);
+                    }
+                    //update page tabel div
+                    document.getElementById("pagetable").innerHTML = "Page Table for Process: " + InstructionsArray[stepCounter][0] + "\nType    Page    Frame\n";
+                    for (var i = 0; i < codepages; i++) {
+                        document.getElementById("pagetable").innerHTML += "code    " + (i + 1) + "        " + codePageTable[InstructionsArray[stepCounter][0]][i] + "\n";
+                    }
+                    for (var i = 0; i < datapages; i++) {
+                        document.getElementById("pagetable").innerHTML += "data    " + (i + 1) + "        " + dataPageTable[InstructionsArray[stepCounter][0]][i] + "\n";
+                    }
+
+                    //increment Instruction Counter    
+                    stepCounter = stepCounter + 1;
                 }
 
             }
-            //increment Instruction Counter    
-            stepCounter = stepCounter + 1;
         }
         //update memory diagram
         for (var i = 0; i < numFrames; i++) {
